@@ -1,13 +1,13 @@
-import { GlobeAltIcon } from '@heroicons/react/24/outline';
+import { ViewfinderCircleIcon } from '@heroicons/react/24/solid';
 import { lusitana } from '@/app/ui/fonts';
 
 export default function AcmeLogo() {
   return (
     <div
-      className={`${lusitana.className} flex flex-row items-center leading-none text-white`}
+      className={`${lusitana.className} flex flex-row items-center leading-none text-white w-full`}
     >
-      <GlobeAltIcon className="h-12 w-12 rotate-[15deg]" />
-      <p className="text-[44px]">Acme</p>
+      <ViewfinderCircleIcon className="h-12 w-12 rounded-sm border-black" />
+      <p className="text-[44px]">Expense Tracker</p>
     </div>
   );
 }

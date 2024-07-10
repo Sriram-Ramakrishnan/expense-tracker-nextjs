@@ -1,5 +1,6 @@
 'use client';
 import { useFormState } from 'react-dom';
+import { useState,useEffect } from 'react';
 import { CustomerField, InvoiceForm } from '@/app/lib/definitions';
 import {
   CheckIcon,
@@ -9,8 +10,8 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
-import { updateInvoice } from '@/app/lib/actions';
-
+import { State, updateInvoice } from '@/app/lib/actions';
+import { fetchImageFromUrl } from '@/app/lib/actions';
 
 export default function EditInvoiceForm({
   invoice,
@@ -20,11 +21,96 @@ export default function EditInvoiceForm({
   customers: CustomerField[];
 }) {
   const initialState = { message: null, errors: {} };
+  const [file, setFile] = useState<File | null>(null);
+
+  // Function to upload file as blob to the site from an URL
+  async function uploadFileFromUrl(receipt_id: string) {
+    try {
+      const response = await fetchImageFromUrl(receipt_id);
+      if(response){
+        const blob = await response.blob();
+        setFile(new File([blob], invoice.receipt_id, { type: blob.type }));
+        console.log('File uploaded successfully');
+      }
+      
+    } catch (error) {
+      console.error('Error uploading file:', error);
+    }
+  }
+
+  // Call the function to upload the file from the URL
+  useEffect(() => {
+    console.log("UseEffect block", invoice);
+  }, [invoice]);
+
+  async function handleFile(file:File) {
+    // File Upload block:
+    const formData = new FormData();
+    const response = await fetch(
+      process.env.NEXT_PUBLIC_BASE_URL + '/api/upload',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+      }
+    )
+    console.log("Response:");
+    console.log(response);
+  
+    if (response.ok) {
+      const { url, fields } = await response.json()
+      console.log(fields);
+      Object.entries(fields).forEach(([key, value]) => {
+        formData.append(key, value as string)
+      });
+      formData.append('file', file);
+      console.log(formData.get('file'));
+      const uploadResponse = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
+      console.log(uploadResponse);
+      if (uploadResponse.ok) {
+        console.log('S3 Upload Success:', uploadResponse);
+      } else {
+        console.error('S3 Upload Error:', uploadResponse);
+      }
+    } else {
+        console.error('S3 Upload Error: Failed to get pre-signed URL.')
+    }
+    return formData;
+  }
+
   const updateInvoiceWithId = updateInvoice.bind(null, invoice.id);
+
+  async function submitForm(prevState: State, formData: FormData) {
+    console.log("Postgres submit block:");
+    console.log(formData.get('receiptId'));
+    const response = await updateInvoiceWithId(prevState, formData);
+    return response;
+  };
   const [state, dispatch] = useFormState(updateInvoiceWithId, initialState);
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('customerId', e.currentTarget.customerId.value);
+    formData.append('amount', e.currentTarget.amount.value);
+    formData.append('status', e.currentTarget.status.value);
+    if (!file){
+      formData.append('receiptId', '');
+    }else{
+      const fileFormData = await handleFile(file);
+      formData.append('receiptId', fileFormData.get('key') as string);
+    }
+    await submitForm(initialState, formData);
+    console.log("Submit block ends");
+  };
+  
   return (
-    <form action={dispatch}>
+    <form action={dispatch}  onSubmit={handleSubmit}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         {/* Customer Name */}
         <div className="mb-4">
@@ -114,6 +200,37 @@ export default function EditInvoiceForm({
             </div>
           </div>
         </fieldset>
+
+        {/* Invoice Receipr */}
+        <div className='mb-4 mt-2'>
+          <label htmlFor="customer" className="mb-2 block text-sm font-medium">
+              Choose receipt if any
+          </label>
+          <div className="relative mt-2 rounded-md">
+            <div className="relative">
+              <input
+                id="file"
+                type="file"
+                onChange={
+                  (e) => {
+                    const currfile = e.target.files?.[0];
+                    if (currfile) {
+                      setFile(currfile);
+                    }
+                  }}
+                className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
+                accept="image/png, image/jpeg"/>
+                {file && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium">Uploaded Receipt</label>
+                    <img src={URL.createObjectURL(file)} alt="Uploaded Receipt" className="max-w-full h-auto" />
+                  </div>
+                )}
+                
+            </div>
+          </div>
+        </div>
+
       </div>
       <div className="mt-6 flex justify-end gap-4">
         <Link
@@ -127,3 +244,4 @@ export default function EditInvoiceForm({
     </form>
   );
 }
+

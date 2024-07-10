@@ -57,6 +57,7 @@ async function seedInvoices(client) {
     customer_id UUID NOT NULL,
     amount INT NOT NULL,
     status VARCHAR(255) NOT NULL,
+    receipt_id UUID DEFAULT NULL::UUID,
     date DATE NOT NULL
   );
 `;
@@ -66,15 +67,22 @@ async function seedInvoices(client) {
     // Insert data into the "invoices" table
     const insertedInvoices = await Promise.all(
       invoices.map(
-        (invoice) => client.sql`
-        INSERT INTO invoices (customer_id, amount, status, date)
+        async (invoice) => {
+          if(!invoice.receipt_id) {
+            await client.sql`INSERT INTO invoices (customer_id, amount, status, date)
         VALUES (${invoice.customer_id}, ${invoice.amount}, ${invoice.status}, ${invoice.date})
-        ON CONFLICT (id) DO NOTHING;
-      `,
+        ON CONFLICT (id) DO NOTHING;`;
+          }else{
+            await client.sql`INSERT INTO invoices (customer_id, amount, status, receipt_id, date)
+        VALUES (${invoice.customer_id}, ${invoice.amount}, ${invoice.status}, ${invoice.receipt_id}, ${invoice.date})
+        ON CONFLICT (id) DO NOTHING;`;
+          }
+        }
       ),
     );
 
     console.log(`Seeded ${insertedInvoices.length} invoices`);
+    console.log(insertedInvoices);
 
     return {
       createTable,
@@ -114,6 +122,7 @@ async function seedCustomers(client) {
     );
 
     console.log(`Seeded ${insertedCustomers.length} customers`);
+    console.log(insertedCustomers);
 
     return {
       createTable,

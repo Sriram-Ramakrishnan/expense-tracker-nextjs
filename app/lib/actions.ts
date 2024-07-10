@@ -34,6 +34,7 @@ export type State = {
       customerId?: string[];
       amount?: string[];
       status?: string[];
+      receiptId?: string[];
     };
     message?: string | null;
 };
@@ -49,6 +50,7 @@ const FormSchema = z.object({
   status: z.enum(['pending', 'paid'], {
     invalid_type_error: 'Please select an invoice status.',
   }),
+    receiptId: z.string(),
     date: z.string(),
   });
 
@@ -61,30 +63,38 @@ export async function createInvoice(prevState: State, formData: FormData) {
       customerId: formData.get('customerId'),
       amount: formData.get('amount'),
       status: formData.get('status'),
+      receiptId: formData.get('receiptId')
     });
+
+    console.log(validatedFields);
 
     if (!validatedFields.success) {
         return {
           errors: validatedFields.error.flatten().fieldErrors,
           message: 'Missing Fields. Failed to Create Invoice.',
+          obj: formData
         };
     }
     
-    const { customerId, amount, status } = validatedFields.data;
+    const { customerId, amount, status, receiptId } = validatedFields.data;
     const amountInCents = amount * 100;
     const date = new Date().toISOString().split('T')[0];
-   
+    
     try {
-      await sql`
-        INSERT INTO invoices (customer_id, amount, status, date)
-        VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
-      `;
+      if(!receiptId) {
+        await sql`INSERT INTO invoices (customer_id, amount, status, date)
+    VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
+    ON CONFLICT (id) DO NOTHING;`;
+      } else{
+        await sql`INSERT INTO invoices (customer_id, amount, status, receipt_id, date)
+    VALUES (${customerId}, ${amountInCents}, ${status}, ${receiptId}, ${date})
+    ON CONFLICT (id) DO NOTHING;`;
+      }
     } catch (error) {
       return {
         message: 'Database Error: Failed to Create Invoice.',
       };
     }
-   
     revalidatePath('/dashboard/invoices');
     redirect('/dashboard/invoices');
   }
@@ -98,7 +108,10 @@ export async function createInvoice(prevState: State, formData: FormData) {
       customerId: formData.get('customerId'),
       amount: formData.get('amount'),
       status: formData.get('status'),
+      receiptId: formData.get('receiptId')
     });
+
+    console.log(validatedFields);
    
     if (!validatedFields.success) {
       return {
@@ -106,8 +119,9 @@ export async function createInvoice(prevState: State, formData: FormData) {
         message: 'Missing Fields. Failed to Update Invoice.',
       };
     }
-   
-    const { customerId, amount, status } = validatedFields.data;
+    
+    console.log(validatedFields.data);
+    const { customerId, amount, status, receiptId } = validatedFields.data;
     const amountInCents = amount * 100;
    
     try {
@@ -116,6 +130,7 @@ export async function createInvoice(prevState: State, formData: FormData) {
         SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
         WHERE id = ${id}
       `;
+      console.log("updated");
     } catch (error) {
       return { message: 'Database Error: Failed to Update Invoice.' };
     }
@@ -134,3 +149,13 @@ export async function createInvoice(prevState: State, formData: FormData) {
     }
   }
  
+  export async function fetchImageFromUrl( receiptId: string){
+    try {
+      console.log(`https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${receiptId}`);
+      const response = await fetch(`https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${receiptId}`);
+      return response;
+    }
+    catch(error){
+      console.error('Error fetching image:', error);
+    }
+  }

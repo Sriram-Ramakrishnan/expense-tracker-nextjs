@@ -17,6 +17,9 @@ export default function Page() {
           <p className={`${lusitana.className} text-xl text-gray-800 md:text-3xl md:leading-normal`}>
             <strong>Welcome to the Expense Tracker Dashboard.</strong> This is an expense tracker dashboard where users can add expenses with receipts and the dashboard provides insights and analytics.
           </p>
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-800 md:text-3xl">Check the github repository for sample user credentials!</h2>
+          </div>
           <Link
             href="/login"
             className="flex items-center gap-5 self-start rounded-lg bg-blue-500 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-400 md:text-base"

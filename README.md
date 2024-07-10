@@ -1,5 +1,11 @@
-## Next.js App Router Course - Starter
+## Next.js Expense Tracker app
 
-This is the starter template for the Next.js App Router Course. It contains the starting code for the dashboard application.
 
-For more information, see the [course curriculum](https://nextjs.org/learn) on the Next.js Website.
+1. Clone this repository to your local machine.
+2. Install the required dependencies by running `npm install` in the project directory.
+3. Start the development server by running `npm run dev`.
+4. Open your browser and navigate to [http://localhost:3000](http://localhost:3000) to view the application.
+
+### Sample user credentials:
+user: sample@nextmail.com
+password: 123456

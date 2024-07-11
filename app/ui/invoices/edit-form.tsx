@@ -1,17 +1,18 @@
 'use client';
 import { useFormState } from 'react-dom';
-import { useState,useEffect } from 'react';
+import { useState,useEffect,useRef } from 'react';
 import { CustomerField, InvoiceForm } from '@/app/lib/definitions';
 import {
   CheckIcon,
   ClockIcon,
   CurrencyDollarIcon,
   UserCircleIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
 import { State, updateInvoice } from '@/app/lib/actions';
-import { fetchImageFromUrl } from '@/app/lib/actions';
+import { fetchImage,fetchS3ImgUrl } from '@/app/lib/actions';
 
 export default function EditInvoiceForm({
   invoice,
@@ -22,25 +23,25 @@ export default function EditInvoiceForm({
 }) {
   const initialState = { message: null, errors: {} };
   const [file, setFile] = useState<File | null>(null);
+  const [s3Url, setS3Url] = useState<string | null>(null);
+  const receiptRef = useRef(null);
 
   // Function to upload file as blob to the site from an URL
   async function uploadFileFromUrl(receipt_id: string) {
     try {
-      const response = await fetchImageFromUrl(receipt_id);
-      if(response){
-        const blob = await response.blob();
-        setFile(new File([blob], invoice.receipt_id, { type: blob.type }));
-        console.log('File uploaded successfully');
+      console.log("Receipt ID:",receipt_id);
+      if(receipt_id !== null && receipt_id !== ''){
+        const receipt_url = await fetchS3ImgUrl(receipt_id);
+        console.log("URL:",receipt_url);
+        if(receipt_url) setS3Url(receipt_url);
       }
-      
     } catch (error) {
-      console.error('Error uploading file:', error);
+        console.error('Error uploading file:', error);
     }
   }
-
   // Call the function to upload the file from the URL
   useEffect(() => {
-    console.log("UseEffect block", invoice);
+    uploadFileFromUrl(invoice.receipt_id);
   }, [invoice]);
 
   async function handleFile(file:File) {
@@ -88,8 +89,16 @@ export default function EditInvoiceForm({
   async function submitForm(prevState: State, formData: FormData) {
     console.log("Postgres submit block:");
     console.log(formData.get('receiptId'));
-    const response = await updateInvoiceWithId(prevState, formData);
-    return response;
+    try {
+      const response = await updateInvoiceWithId(prevState, formData);
+      if(response.errors){
+        alert("Error: "+response.message);
+      }
+      return response;
+    } catch (error) {
+      return { message: 'Database Error: Failed to Create Invoice.' };
+    }
+    
   };
   const [state, dispatch] = useFormState(updateInvoiceWithId, initialState);
 
@@ -99,7 +108,8 @@ export default function EditInvoiceForm({
     formData.append('customerId', e.currentTarget.customerId.value);
     formData.append('amount', e.currentTarget.amount.value);
     formData.append('status', e.currentTarget.status.value);
-    if (!file){
+    if (!file || s3Url === null){
+      console.log("No file uploaded");
       formData.append('receiptId', '');
     }else{
       const fileFormData = await handleFile(file);
@@ -110,7 +120,7 @@ export default function EditInvoiceForm({
   };
   
   return (
-    <form action={dispatch}  onSubmit={handleSubmit}>
+    <form action={dispatch} onSubmit={handleSubmit}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         {/* Customer Name */}
         <div className="mb-4">
@@ -208,22 +218,41 @@ export default function EditInvoiceForm({
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
-              <input
+              <div className='flex items-center justify-between'>
+                <input
                 id="file"
                 type="file"
+                ref={receiptRef}
                 onChange={
                   (e) => {
                     const currfile = e.target.files?.[0];
                     if (currfile) {
                       setFile(currfile);
+                      setS3Url(URL.createObjectURL(currfile));
                     }
                   }}
-                className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
-                accept="image/png, image/jpeg"/>
-                {file && (
+                className="peer block w-2/3 md:w-1/2 rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500 cursor-pointer"
+                accept="image/png, image/jpeg"
+                />
+                <Button className=' bg-gray-500 hover:bg-red-500'
+                  onClick={(e)=>{
+                    e.preventDefault();
+                    setFile(null);
+                    setS3Url(null);
+                    if(receiptRef.current)  (receiptRef.current as HTMLInputElement).value = '';
+                  }}>Remove</Button>
+              </div>
+                {s3Url && (
                   <div className="mt-4">
                     <label className="block text-sm font-medium">Uploaded Receipt</label>
-                    <img src={URL.createObjectURL(file)} alt="Uploaded Receipt" className="max-w-full h-auto" />
+                    <img src={s3Url} alt="Uploaded Receipt" className="max-w-full h-auto" />
+                  </div>
+                )}
+
+                {!s3Url && (
+                  <div className="mt-4 text-center">
+                    <PhotoIcon className="h-16 w-16 mx-auto text-gray-400 md:h8 md:w-8" />
+                    <label className="block text-sm font-medium">No Receipt uploaded</label>
                   </div>
                 )}
                 

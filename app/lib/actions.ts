@@ -71,8 +71,7 @@ export async function createInvoice(prevState: State, formData: FormData) {
     if (!validatedFields.success) {
         return {
           errors: validatedFields.error.flatten().fieldErrors,
-          message: 'Missing Fields. Failed to Create Invoice.',
-          obj: formData
+          message: 'Missing Fields. Failed to Create Invoice.'
         };
     }
     
@@ -123,13 +122,21 @@ export async function createInvoice(prevState: State, formData: FormData) {
     console.log(validatedFields.data);
     const { customerId, amount, status, receiptId } = validatedFields.data;
     const amountInCents = amount * 100;
-   
+    console.log(receiptId);
     try {
-      await sql`
+      if(receiptId !== ''){
+        await sql`
         UPDATE invoices
-        SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
+        SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}, receipt_id = ${receiptId}
         WHERE id = ${id}
       `;
+      }else{
+        await sql`
+        UPDATE invoices
+        SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}, receipt_id = NULL
+        WHERE id = ${id}
+      `;
+      }
       console.log("updated");
     } catch (error) {
       return { message: 'Database Error: Failed to Update Invoice.' };
@@ -149,11 +156,22 @@ export async function createInvoice(prevState: State, formData: FormData) {
     }
   }
  
-  export async function fetchImageFromUrl( receiptId: string){
+  export async function fetchImage( receiptId: string){
     try {
       console.log(`https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${receiptId}`);
       const response = await fetch(`https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${receiptId}`);
-      return response;
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      return url;
+    }
+    catch(error){
+      console.error('Error fetching image:', error);
+    }
+  }
+
+  export async function fetchS3ImgUrl( receiptId: string){
+    try {
+      return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${receiptId}`;
     }
     catch(error){
       console.error('Error fetching image:', error);

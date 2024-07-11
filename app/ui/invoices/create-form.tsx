@@ -1,6 +1,6 @@
 'use client';
 import { useFormState } from 'react-dom';
-import { useState } from 'react'
+import { useState,useRef } from 'react'
 import { CustomerField } from '@/app/lib/definitions';
 import Link from 'next/link';
 import {
@@ -8,6 +8,7 @@ import {
   ClockIcon,
   CurrencyDollarIcon,
   UserCircleIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/app/ui/button';
 import { State, createInvoice } from '@/app/lib/actions';
@@ -15,6 +16,7 @@ import { State, createInvoice } from '@/app/lib/actions';
 export default function Form({ customers }: { customers: CustomerField[] }) {
   const initialState = { message: null, errors: {} };
   const [file, setFile] = useState<File | null>(null);
+  const receiptRef = useRef(null);
 
   async function handleFile(file:File) {
     // File Upload block:
@@ -59,8 +61,15 @@ export default function Form({ customers }: { customers: CustomerField[] }) {
   async function submitForm(prevState: State, formData: FormData) {
     console.log("Postgres submit block:");
     console.log(formData.get('receiptId'));
-    const response = await createInvoice(prevState, formData);
-    return response;
+    try {
+      const response = await createInvoice(prevState, formData);
+      if(response.errors){
+        alert("Error: "+response.message);
+      }
+      return response;
+    } catch (error) {
+      return { message: 'Database Error: Failed to Create Invoice.' };
+    }
   };
 
   const [state, dispatch] = useFormState(submitForm, 
@@ -206,9 +215,11 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
-              <input
+              <div className='flex items-center justify-between'>
+                <input
                 id="file"
                 type="file"
+                ref={receiptRef}
                 onChange={
                   (e) => {
                     const currfile = e.target.files?.[0];
@@ -216,12 +227,26 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                       setFile(currfile);
                     }
                   }}
-                className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
-                accept="image/png, image/jpeg"/>
+                className="peer block w-2/3 rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
+                accept="image/png, image/jpeg"
+                />
+                <Button className=' bg-gray-500 hover:bg-red-500'
+                  onClick={(e)=>{
+                    e.preventDefault();
+                    setFile(null);
+                    if(receiptRef.current)  (receiptRef.current as HTMLInputElement).value = '';
+                  }}>Remove</Button>
+                </div>
                 {file && (
                   <div className="mt-4">
                     <label className="block text-sm font-medium">Uploaded Receipt</label>
                     <img src={URL.createObjectURL(file)} alt="Uploaded Receipt" className="max-w-full h-auto" />
+                  </div>
+                )}
+                {!file && (
+                  <div className="mt-4 text-center">
+                    <PhotoIcon className="h-16 w-16 mx-auto text-gray-400 md:h8 md:w-8" />
+                    <label className="block text-sm font-medium">No Receipt uploaded</label>
                   </div>
                 )}
             </div>

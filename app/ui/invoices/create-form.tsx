@@ -59,12 +59,18 @@ export default function Form({ customers }: { customers: CustomerField[] }) {
   }
 
   async function submitForm(prevState: State, formData: FormData) {
+    if (!file){
+      formData.append('receiptId', '');
+    }else{
+      const fileFormData = await handleFile(file);
+      formData.append('receiptId', fileFormData.get('key') as string);
+    }
     console.log("Postgres submit block:");
     console.log(formData.get('receiptId'));
     try {
       const response = await createInvoice(prevState, formData);
       if(response.errors){
-        alert("Error: "+response.message);
+        return response;
       }
       return response;
     } catch (error) {
@@ -75,24 +81,8 @@ export default function Form({ customers }: { customers: CustomerField[] }) {
   const [state, dispatch] = useFormState(submitForm, 
 initialState);
 
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  const formData = new FormData();
-  formData.append('customerId', e.currentTarget.customerId.value);
-  formData.append('amount', e.currentTarget.amount.value);
-  formData.append('status', e.currentTarget.status.value);
-  if (!file){
-    formData.append('receiptId', '');
-  }else{
-    const fileFormData = await handleFile(file);
-    formData.append('receiptId', fileFormData.get('key') as string);
-  }
-  await submitForm(initialState, formData);
-  console.log("Submit block ends");
-};
-
   return (
-    <form action={dispatch} onSubmit={handleSubmit}>
+    <form action={dispatch}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         {/* Customer Name */}
         <div className="mb-4">

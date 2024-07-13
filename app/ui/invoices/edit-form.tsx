@@ -87,27 +87,6 @@ export default function EditInvoiceForm({
   const updateInvoiceWithId = updateInvoice.bind(null, invoice.id);
 
   async function submitForm(prevState: State, formData: FormData) {
-    console.log("Postgres submit block:");
-    console.log(formData.get('receiptId'));
-    try {
-      const response = await updateInvoiceWithId(prevState, formData);
-      if(response.errors){
-        alert("Error: "+response.message);
-      }
-      return response;
-    } catch (error) {
-      return { message: 'Database Error: Failed to Create Invoice.' };
-    }
-    
-  };
-  const [state, dispatch] = useFormState(updateInvoiceWithId, initialState);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append('customerId', e.currentTarget.customerId.value);
-    formData.append('amount', e.currentTarget.amount.value);
-    formData.append('status', e.currentTarget.status.value);
     if (!file || s3Url === null){
       console.log("No file uploaded");
       formData.append('receiptId', '');
@@ -115,12 +94,21 @@ export default function EditInvoiceForm({
       const fileFormData = await handleFile(file);
       formData.append('receiptId', fileFormData.get('key') as string);
     }
-    await submitForm(initialState, formData);
-    console.log("Submit block ends");
+    try {
+      const response = await updateInvoiceWithId(prevState, formData);
+      if(response.errors){
+        return response;
+      }
+      return response;
+    } catch (error) {
+      return { message: 'Database Error: Failed to Create Invoice.' };
+    }
+    
   };
+  const [state, dispatch] = useFormState(submitForm, initialState);
   
   return (
-    <form action={dispatch} onSubmit={handleSubmit}>
+    <form action={dispatch}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         {/* Customer Name */}
         <div className="mb-4">
@@ -145,6 +133,14 @@ export default function EditInvoiceForm({
             </select>
             <UserCircleIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500" />
           </div>
+          <div id="customer-error" aria-live="polite" aria-atomic="true">
+              {state.errors?.customerId &&
+                state.errors.customerId.map((error: string) => (
+                  <p className="mt-4 text-sm text-red-500" key={error}>
+                    {error}
+                  </p>
+                ))}
+            </div>
         </div>
 
         {/* Invoice Amount */}
@@ -164,6 +160,14 @@ export default function EditInvoiceForm({
                 className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
               />
               <CurrencyDollarIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
+            </div>
+            <div id="amount-error" aria-live="polite" aria-atomic="true">
+              {state.errors?.amount &&
+                state.errors.amount.map((error: string) => (
+                  <p className="mt-4 text-sm text-red-500" key={error}>
+                    {error}
+                  </p>
+                ))}
             </div>
           </div>
         </div>
@@ -209,9 +213,17 @@ export default function EditInvoiceForm({
               </div>
             </div>
           </div>
+          <div id='status-error'>
+              {state.errors?.status &&
+                state.errors.status.map((error: string) => (
+                  <p className="mt-4 text-sm text-red-500" key={error}>
+                    {error}
+                  </p>
+              ))}
+            </div>
         </fieldset>
 
-        {/* Invoice Receipr */}
+        {/* Invoice Receipt */}
         <div className='mb-4 mt-2'>
           <label htmlFor="customer" className="mb-2 block text-sm font-medium">
               Choose receipt if any
@@ -261,6 +273,13 @@ export default function EditInvoiceForm({
         </div>
 
       </div>
+      <div>
+          {(state.message) &&
+            <p className="mt-4 text-sm text-red-500" key={state.message}>
+              {state.message}
+            </p>
+          }
+      </div>
       <div className="mt-6 flex justify-end gap-4">
         <Link
           href="/dashboard/invoices"
@@ -268,7 +287,7 @@ export default function EditInvoiceForm({
         >
           Cancel
         </Link>
-        <Button type="submit">Edit Invoice</Button>
+        <Button type="submit">Save Invoice</Button>
       </div>
     </form>
   );

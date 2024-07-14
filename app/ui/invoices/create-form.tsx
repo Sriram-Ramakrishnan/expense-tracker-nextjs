@@ -1,6 +1,6 @@
 'use client';
 import { useFormState } from 'react-dom';
-import { useState,useRef } from 'react'
+import { useState,useRef, useEffect } from 'react'
 import { CustomerField } from '@/app/lib/definitions';
 import Link from 'next/link';
 import {
@@ -11,7 +11,9 @@ import {
   PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/app/ui/button';
-import { State, createInvoice } from '@/app/lib/actions';
+import { State, createInvoice, redirPage } from '@/app/lib/actions';
+
+import { toast, Bounce } from 'react-toastify';
 
 export default function Form({ customers }: { customers: CustomerField[] }) {
   const initialState = { message: null, errors: {} };
@@ -72,14 +74,45 @@ export default function Form({ customers }: { customers: CustomerField[] }) {
       if(response.errors){
         return response;
       }
-      return response;
+      toast.success("Invoice Created",{
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+        });
+      redirPage();
+      return { message: 'Created Invoice.' };
     } catch (error) {
       return { message: 'Database Error: Failed to Create Invoice.' };
     }
   };
 
+  // useFormState hook
   const [state, dispatch] = useFormState(submitForm, 
 initialState);
+
+    // useEffect for showing error message notification
+    useEffect(() => {
+      if (state.message) {
+        toast.error("Fill all columns",{
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+          });
+          state.message = null;
+      }
+    }, [state.message]);
 
   return (
     <form action={dispatch}>

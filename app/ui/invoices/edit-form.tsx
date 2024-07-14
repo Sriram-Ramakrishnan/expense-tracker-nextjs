@@ -11,8 +11,11 @@ import {
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
-import { State, updateInvoice } from '@/app/lib/actions';
-import { fetchImage,fetchS3ImgUrl } from '@/app/lib/actions';
+import { State, updateInvoice, redirPage } from '@/app/lib/actions';
+import { fetchS3ImgUrl } from '@/app/lib/actions';
+
+import { toast, Bounce } from 'react-toastify';
+
 
 export default function EditInvoiceForm({
   invoice,
@@ -87,25 +90,61 @@ export default function EditInvoiceForm({
   const updateInvoiceWithId = updateInvoice.bind(null, invoice.id);
 
   async function submitForm(prevState: State, formData: FormData) {
-    if (!file || s3Url === null){
+    if (!file){
       console.log("No file uploaded");
-      formData.append('receiptId', '');
+      if(invoice.receipt_id && s3Url){
+        formData.append('receiptId', invoice.receipt_id);
+      }else{
+        formData.append('receiptId', '');
+      }
     }else{
       const fileFormData = await handleFile(file);
       formData.append('receiptId', fileFormData.get('key') as string);
     }
     try {
       const response = await updateInvoiceWithId(prevState, formData);
+      console.log("Response:",response);
       if(response.errors){
         return response;
       }
-      return response;
+      toast.success("Invoice Updated",{
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+        });
+      redirPage();
+      return { message: 'Updated Invoice.' };
     } catch (error) {
+      console.log("Error:",error);
       return { message: 'Database Error: Failed to Create Invoice.' };
     }
     
   };
   const [state, dispatch] = useFormState(submitForm, initialState);
+
+  // useEffect for showing error message notification
+  useEffect(() => {
+    if (state.message) {
+      toast.error("Fill all columns",{
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+        });
+        state.message = null;
+    }
+  }, [state.message]);
   
   return (
     <form action={dispatch}>

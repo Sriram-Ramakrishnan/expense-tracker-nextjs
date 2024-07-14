@@ -1,14 +1,13 @@
 'use server';
-import { z } from 'zod'; 
+import { set, z } from 'zod'; 
 import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { signIn } from '@/auth';
 import { AuthError } from 'next-auth';
+import { cookies } from 'next/headers';
 
-
-// Auth functions
- 
+// Auth functions 
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
@@ -89,16 +88,15 @@ export async function createInvoice(prevState: State, formData: FormData) {
     VALUES (${customerId}, ${amountInCents}, ${status}, ${receiptId}, ${date})
     ON CONFLICT (id) DO NOTHING;`;
       }
+      return { message: 'Created Invoice.' };
     } catch (error) {
       return {
         message: 'Database Error: Failed to Create Invoice.',
       };
     }
-    revalidatePath('/dashboard/invoices');
-    redirect('/dashboard/invoices');
   }
 
-  export async function updateInvoice(
+export async function updateInvoice(
     id: string,
     prevState: State,
     formData: FormData,
@@ -138,38 +136,23 @@ export async function createInvoice(prevState: State, formData: FormData) {
       `;
       }
       console.log("updated");
+      return { message: 'Updated Invoice.' };
     } catch (error) {
       return { message: 'Database Error: Failed to Update Invoice.' };
     }
-   
-    revalidatePath('/dashboard/invoices');
-    redirect('/dashboard/invoices');
   }
 
-  export async function deleteInvoice(id: string) {
+export async function deleteInvoice(id: string) {
     try {
       await sql`DELETE FROM invoices WHERE id = ${id}`;
       revalidatePath('/dashboard/invoices');
-      return { message: 'Deleted Invoice.' };
+      return { message: 'Deleted Invoice.', success: true };
     } catch (error) {
-      return { message: 'Database Error: Failed to Delete Invoice.' };
+      return { message: 'Database Error: Failed to Delete Invoice.', success: false };
     }
   }
  
-  export async function fetchImage( receiptId: string){
-    try {
-      console.log(`https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${receiptId}`);
-      const response = await fetch(`https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${receiptId}`);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      return url;
-    }
-    catch(error){
-      console.error('Error fetching image:', error);
-    }
-  }
-
-  export async function fetchS3ImgUrl( receiptId: string){
+export async function fetchS3ImgUrl( receiptId: string){
     try {
       return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${receiptId}`;
     }
@@ -177,3 +160,8 @@ export async function createInvoice(prevState: State, formData: FormData) {
       console.error('Error fetching image:', error);
     }
   }
+
+export async function redirPage() {
+    revalidatePath('/dashboard/invoices');
+    redirect('/dashboard/invoices');
+}

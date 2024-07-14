@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { deleteInvoice } from '@/app/lib/actions';
 
 import { useState } from 'react';
+import { toast, Bounce } from 'react-toastify';
 
 export function CreateInvoice() {
   return (
@@ -28,22 +29,48 @@ export function UpdateInvoice({ id }: { id: string }) {
   );
 }
 
-// To-do: Add a pop-up confirming the deletion of invoice
-
-
-
-
 export function DeleteInvoice({ id }: { id: string }) {
   const deleteInvoiceWithId = deleteInvoice.bind(null, id);
-  const [isOpen, setIsOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
-    const confirmDeleteModal = () => {
+  const deleteInvoiceAction = async () => {
+    try {
+      const response = await deleteInvoiceWithId();
+      if (response.success){
+        toast.success("Deleted Invoice.",{
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+          transition: Bounce,
+          });
+      }
+    } catch (error) { 
+      toast.error("Error deleting invoice.",{
+        position: "top-right",
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+        transition: Bounce,
+        });
+      console.error(error);
+    }
+  };
+
+  const [isOpen, setIsOpen] = useState(false);
+  const confirmDeleteModal = () => {
         setIsOpen(!isOpen);
-    };
+  };
 
   return (
-    <form action={deleteInvoiceWithId}>      
+    <form action={deleteInvoiceAction}>      
         <button className="rounded-md border p-2 hover:bg-gray-100" type='button' onClick={confirmDeleteModal}>
         <span className="sr-only">Delete</span>
         <TrashIcon className="w-5" />

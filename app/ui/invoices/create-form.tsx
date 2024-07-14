@@ -112,7 +112,7 @@ initialState);
           });
           state.message = null;
       }
-    }, [state.message]);
+    }, [state]);
 
   return (
     <form action={dispatch}>
